@@ -1,0 +1,72 @@
+name: RLV scenarios
+
+# Fetches OpenCollar at a pinned commit, builds the scenario runner from PinglyMotion at a pinned commit,
+# and runs scenarios/*.rlvtest against the collar's scripts. No OpenCollar file is stored in this repository.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  OPENCOLLAR_REF: 2500e6a8ebef8b0931cd62fe5daaff321290158d
+  ENGINE_REF: 9d50ec0b060b0be98c9051039337ab70a1e481ca
+
+jobs:
+  scenarios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: tests
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: OpenCollarTeam/OpenCollar
+          ref: ${{ env.OPENCOLLAR_REF }}
+          path: oc
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: pingledingle-tech/PinglyMotion
+          ref: ${{ env.ENGINE_REF }}
+          path: engine
+          persist-credentials: false
+      - name: Cache downloaded apt packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /home/runner/apt-archives
+          key: apt-scenarios-${{ env.ENGINE_REF }}
+          restore-keys: apt-scenarios-
+      - name: Install Qt 6
+        run: |
+          mkdir -p /home/runner/apt-archives/partial
+          sudo apt-get update
+          sudo apt-get install -y -o Dir::Cache::archives=/home/runner/apt-archives ccache qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-l10n-tools libqt6opengl6-dev libgl-dev glslang-tools
+          sudo chown -R "$USER" /home/runner/apt-archives
+      - name: Cache compiler output
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /home/runner/.ccache
+          key: ccache-scenarios-${{ env.ENGINE_REF }}
+          restore-keys: ccache-scenarios-
+      - name: Build the runner
+        working-directory: engine
+        env:
+          CCACHE_DIR: /home/runner/.ccache
+          SOURCE_DATE_EPOCH: '0'
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_NUMBER=0 -DPINGLYMOTION_TESTS=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build build --target pinglymotion_rlvtest -j 4
+      - name: Assemble the collar object
+        working-directory: tests
+        run: tools/assemble.sh ../oc
+      - name: Run the scenarios
+        working-directory: tests
+        run: |
+          unset DISPLAY QT_QPA_PLATFORM WAYLAND_DISPLAY
+          ../engine/build/tests/rlvtest/pinglymotion_rlvtest --objects scripts scenarios

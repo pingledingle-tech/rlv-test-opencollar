@@ -1,0 +1,74 @@
+# RLV restriction bookkeeping of OpenCollar's oc_rlvsys.lsl (src/collar), run in the Script Lab sandbox.
+# Driver: "say -88 <number>|<id>|<message>" sends a linked message; the id is the source of the restriction.
+# Numbers: 6000 RLV_CMD, 500 CMD_OWNER, 503 CMD_WEARER, 510 CMD_SAFEWORD. Sources A = 1111..., B = 2222...
+wait 10
+expect not blocked:sendim
+expect not blocked:startim
+expect not blocked:recvim
+
+# 1. One source adds and removes a restriction.
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=n
+expect blocked:sendim
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=y
+expect not blocked:sendim
+
+# 2. Two sources: the restriction stays until both have removed it.
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=n
+say -88 6000|22222222-2222-4222-8222-222222222222|sendim=n
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=y
+expect blocked:sendim
+say -88 6000|22222222-2222-4222-8222-222222222222|sendim=y
+expect not blocked:sendim
+
+# 3. A source that sets the same restriction twice frees it with one removal.
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=n
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=n
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=y
+expect not blocked:sendim
+
+# 4. "clear" from one source frees only that source's restrictions.
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=n,startim=n
+say -88 6000|22222222-2222-4222-8222-222222222222|recvim=n
+expect blocked:sendim
+expect blocked:startim
+expect blocked:recvim
+say -88 6000|11111111-1111-4111-8111-111111111111|clear
+expect not blocked:sendim
+expect not blocked:startim
+expect blocked:recvim
+
+# 5. A filtered clear frees only the restrictions it names.
+say -88 6000|22222222-2222-4222-8222-222222222222|sendim=n,startim=n
+say -88 6000|22222222-2222-4222-8222-222222222222|clear=sendim
+expect not blocked:sendim
+expect blocked:startim
+expect blocked:recvim
+
+# 6. Only the owner may clear everything; the wearer is refused and nothing changes.
+say -88 503|@me|clear
+expect blocked:startim
+expect blocked:recvim
+say -88 500|@me|clear
+expect not blocked:startim
+expect not blocked:recvim
+
+# 7. Safeword frees every source.
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=n
+say -88 6000|22222222-2222-4222-8222-222222222222|recvim=n
+expect blocked:sendim
+expect blocked:recvim
+say -88 510|@me|
+expect not blocked:sendim
+expect not blocked:recvim
+
+# 8. RLV off removes every restriction and ignores new ones; RLV on accepts them again.
+say -88 6000|11111111-1111-4111-8111-111111111111|sendim=n
+expect blocked:sendim
+say -88 500|@me|rlv off
+expect not blocked:sendim
+say -88 6000|11111111-1111-4111-8111-111111111111|startim=n
+expect not blocked:startim
+say -88 500|@me|rlv on
+wait 10
+say -88 6000|11111111-1111-4111-8111-111111111111|startim=n
+expect blocked:startim

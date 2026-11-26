@@ -70,3 +70,6 @@ jobs:
         run: |
           unset DISPLAY QT_QPA_PLATFORM WAYLAND_DISPLAY
           ../engine/build/tests/rlvtest/pinglymotion_rlvtest --objects scripts scenarios
+      - name: Mutation test (reports only)
+        working-directory: tests
+        run: python3 -I tools/mutate.py ../oc ../engine/build/tests/rlvtest/pinglymotion_rlvtest

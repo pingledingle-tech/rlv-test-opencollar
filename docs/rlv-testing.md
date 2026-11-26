@@ -51,3 +51,7 @@ build/tests/rlvtest/pinglymotion_rlvtest --objects scripts scenarios
 ```
 
 The runner prints `PASS` or `FAIL` per scenario with the line of every broken expectation, and exits with 1 on any failure.
+
+## Mutation test
+
+`tools/mutate.py <OpenCollar checkout> <runner>` changes one thing at a time in a collar script (a message number, `=n` to `=y`, a removed check), assembles the object and runs the scenarios. A scenario set that notices the change is good (`killed`); one that does not (`SURVIVED`) has a hole, or the change does not matter. `--check` only verifies that every mutation matches the source exactly once. CI runs it after the scenarios and reports the result; `--strict` makes survivors fail the run. A mutant that does not compile also counts as killed, so a new mutation should be tried once by hand.

@@ -71,7 +71,8 @@ def main():
             print("SURVIVED %s" % name)
             survived.append(name)
         else:
-            print("killed   %s" % name)
+            why = [l.strip() for l in r.stdout.splitlines() if l.strip() and not l.startswith("PASS")]
+            print("killed   %s   <- %s" % (name, (why[0] if why else "no output")[:150]))
     # restore the unchanged object so a later run starts clean
     subprocess.run([os.path.join(HERE, "assemble.sh"), oc], check=True, stdout=subprocess.DEVNULL)
     print("%d of %d mutants killed" % (len(MUTANTS) - len(survived), len(MUTANTS)))
